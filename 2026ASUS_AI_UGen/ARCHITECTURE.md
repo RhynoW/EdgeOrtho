@@ -3,7 +3,8 @@
 **EdgeOrtho: On-Device AI Turns Drone Imagery into Immediate, Auditable River-Patrol Map Intelligence**
 
 2026 ASUS UGen AI League Innovation Hackathon · Stage I · Theme: Workplace AI · Battlefield: Lightning (ASUS UGen300 / Hailo-10H) · Finals track: Onsite
-Document status: v2 for external technical review. v1 (architecture-first) is kept as `ARCHITECTURE.v1-review.md`.
+Document status: v2.1 for external technical review. v1 (architecture-first) is kept as `ARCHITECTURE.v1-review.md`.
+Repository: `github.com/RhynoW/EdgeOrtho` (private until submission). The repository is a clean export: server source, simulation scripts, this document and the demo.
 
 ---
 
@@ -95,6 +96,7 @@ A public-sector drone procurement specification (summary only; not republished) 
 | Frame generator from a real orthophoto, prototype detector, merge to GeoJSON, demo viewer | **[Built]** (this repository, `demo/`) |
 | Detector on UGen300 (HailoRT / HEF) and the detections layer served by the server | **[Planned]** |
 | Historical 1938 Touchian River map as a comparison layer | **[Built]** (viewer layer list) |
+| Recording mode of the demo (`run_demo.py --watch`): paced upload with a live-refreshing viewer, used to film the mosaic growing | **[Built]** |
 
 ---
 
@@ -169,6 +171,16 @@ The two ingest runs differ more than the frame counts explain; I did not control
 
 **Screenshots** (`demo/output/screens/`, with attribution): live mosaic with candidate boxes, close-ups at z20 and z21, and a version with detections off.
 
+**Reproduce.**
+```
+python demo/make_frames.py --out <dir>/sim --center-e 248302 --center-n 2746446 --size 220x140
+python demo/detect_frames.py --sim <dir>/sim --out <dir>/det --thr 0.2 --annot 0
+python demo/merge_detections.py --raw <dir>/det/raw_detections.json --out demo/output/detections_river.geojson --min-frames 1
+python demo/run_demo.py --sim <dir>/sim --shots <dir>/shots --det output/detections_river.geojson --prefix river
+python demo/run_demo.py --sim <dir>/sim --watch --pace 4 --det output/detections_river.geojson   # recording mode
+```
+The server must be built with `--features ingest`; the demo uses `config/layers.demo.toml` (one live layer, one demo key from an environment variable).
+
 **What this shows.** The path *frame → pose → mosaic pyramid → WMTS tile → map overlay with candidates* runs end to end at 3.6 cm input quality, which is close to the 5 cm requirement and removes the earlier "0.265 m only" limitation for the imagery side.
 **What it does not show.** Detection precision/recall, real-camera pose accuracy, edge latency.
 
@@ -226,6 +238,7 @@ The 1938 1:2,500 Touchian River topographic map (Academia Sinica Hsinchu centenn
 | 8 | Audit chain head needs external anchoring | Database-write attacker can rewrite a consistent chain without an anchor |
 | 9 | Business case unvalidated | No customer interviews yet |
 | 10 | Model conversion/quantisation loss, label scarcity, USB bandwidth for large frames | Stage II schedule risk |
+| 11 | `scripts/sim/` was developed in a larger workspace; only `demo/` is the supported entry point in the export | Some simulation scripts may need adjustment |
 
 ---
 
@@ -263,6 +276,7 @@ The 1938 1:2,500 Touchian River topographic map (Academia Sinica Hsinchu centenn
 | `--features ingest` unit tests | 35 passed, 1 ignored (replay helper) |
 | Role matrix, audit tamper, dedupe, health/audit end-to-end scripts | passed (local, `scripts/sim/`) |
 | River demo (this repository) | 270/270 and 243/243 frames ingested, viewer with no script errors |
+| Clean-export repository | rebuilt and re-tested after de-identification: 25 passed (default), 35 passed + 1 ignored (`--features ingest`) |
 
 There is no hardware-in-the-loop test and no detection accuracy test.
 

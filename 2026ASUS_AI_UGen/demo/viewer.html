@@ -57,7 +57,7 @@ const Mosaic = L.GridLayer.extend({
   createTile(coords, done) {
     const img = document.createElement("img");
     img.width = img.height = 256;
-    fetch(`${BASE}/wmts/1.0.0/${LAYER}/default/GoogleMapsCompatible/${coords.z}/${coords.y}/${coords.x}.png`, { headers: { "X-API-Key": KEY } })
+    fetch(`${BASE}/wmts/1.0.0/${LAYER}/default/GoogleMapsCompatible/${coords.z}/${coords.y}/${coords.x}.png`, { headers: { "X-API-Key": KEY }, cache: "no-store" })
       .then((r) => (r.ok ? r.blob() : Promise.reject(r.status)))
       .then((b) => { img.onload = () => { loaded++; document.getElementById("s-t").textContent = loaded; done(null, img); }; img.src = URL.createObjectURL(b); })
       .catch(() => done(null, img));
@@ -87,6 +87,9 @@ fetch(DET).then((r) => r.json()).then((gj) => {
   if (b.length && !qs.get("lat")) map.fitBounds(L.latLngBounds(b).pad(0.3));
 });
 if (qs.get("lat")) map.setView([+qs.get("lat"), +qs.get("lng")], +(qs.get("z") || 20));
+
+// live=<seconds>: re-request the visible tiles periodically so the mosaic grows while frames are being ingested
+if (+qs.get("live") > 0) setInterval(() => { if (map.hasLayer(mosaic)) mosaic.redraw(); }, +qs.get("live") * 1000);
 
 document.getElementById("t-mosaic").onchange = (e) => (e.target.checked ? map.addLayer(mosaic) : map.removeLayer(mosaic));
 document.getElementById("t-det").onchange = (e) => (e.target.checked ? map.addLayer(detLayer) : map.removeLayer(detLayer));

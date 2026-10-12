@@ -87,11 +87,14 @@ async def shots(args, geo):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--sim", required=True); ap.add_argument("--shots", required=True)
+    ap.add_argument("--sim", required=True); ap.add_argument("--shots", default=None)
     ap.add_argument("--port", type=int, default=8098); ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--det", default="output/detections.geojson", help="detections GeoJSON, relative to the demo folder")
     ap.add_argument("--prefix", default="viewer", help="screenshot file name prefix")
+    ap.add_argument("--watch", action="store_true", help="recording mode: open a visible Edge window on the live viewer BEFORE ingesting, upload at --pace, then keep everything up for --hold seconds (no screenshots)")
+    ap.add_argument("--pace", type=float, default=4.0, help="--watch: frames per second to upload")
+    ap.add_argument("--hold", type=float, default=60.0, help="--watch: seconds to keep the server and viewer up after ingest")
     args = ap.parse_args()
     man = json.load(open(os.path.join(args.sim, "manifest.json"), encoding="utf8"))
     frames = man["frames"][: args.limit or None]
@@ -110,10 +113,19 @@ def main():
         else:
             sys.exit("server did not start; see " + os.path.join(tmp, "server.log"))
         base = f"http://127.0.0.1:{args.port}"
+        if args.watch:
+            viewer = subprocess.Popen([sys.executable, "-m", "http.server", str(VIEW_PORT), "--bind", "127.0.0.1", "--directory", HERE],
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            time.sleep(1.0)
+            url = (f"http://127.0.0.1:{VIEW_PORT}/viewer.html?base={base}&key={KEY}&layer=orthophoto_live&det={args.det}&live=2")
+            edge = subprocess.Popen([EDGE, "--new-window", f"--user-data-dir={tempfile.mkdtemp(prefix='watch_edge_')}", "--no-first-run", "--window-size=1600,900", url],
+                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print("Edge window opened; start your screen recorder now. Uploading starts in 8 s...", flush=True); time.sleep(8)
         print(f"ingesting {len(frames)} frames (gsd_per_agl={man['gsd_per_agl']}, target EPSG:3857 z21, workers {args.workers})", flush=True)
         t0 = time.time(); lat, res = [], []
         def one(f):
             data = open(os.path.join(args.sim, "frames", f["file"]), "rb").read()
+            if args.watch: time.sleep(1.0 / args.pace * args.workers)
             for _ in range(10):
                 s, j, dt = post(f"{base}/api/v1/ingest/frame?session_id=river-1", data)
                 if s in (503, 409): time.sleep(2); continue
@@ -132,6 +144,9 @@ def main():
         tiles = sum(len(fs) for _, _, fs in os.walk(os.path.join(tmp, "tiles")))
         print("tile files on disk:", tiles, flush=True)
 
+        if args.watch:
+            print(f"holding for {args.hold:.0f} s (viewer stays up; close the window or wait)...", flush=True); time.sleep(args.hold)
+            return
         viewer = subprocess.Popen([sys.executable, "-m", "http.server", str(VIEW_PORT), "--bind", "127.0.0.1", "--directory", HERE],
                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(1.5)
@@ -139,6 +154,9 @@ def main():
         asyncio.run(shots(args, geo))
     finally:
         if viewer: viewer.kill()
+        if args.watch:
+            try: edge.kill()
+            except Exception: pass
         srv.kill(); srv.wait()
         shutil.rmtree(tmp, ignore_errors=True)
 
