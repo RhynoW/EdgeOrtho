@@ -1,0 +1,141 @@
+# 本機開發/測試用設定檔（非正式部署設定，正式設定見 config/layers.toml）。
+# 用法：WMTS_CONFIG=config/layers.local.toml cargo run
+#
+# 與正式版差異：
+#   - behind_reverse_proxy = true，直接綁明文 HTTP，本機測試不需自簽憑證
+#     （避免瀏覽器 fetch() 對 self-signed HTTPS 憑證的信任問題）。
+#   - public_base_url / allowed_origins / allowed_referers 改成 localhost，
+#     讓 static/viewer.html 這個內建輕量檢視器能同源存取 /wmts 端點。
+[server]
+bind = "127.0.0.1:8080"
+behind_reverse_proxy = true
+tls_cert = "certs/fullchain.pem"
+tls_key = "certs/privkey.pem"
+public_base_url = "http://localhost:8080"
+db_path = "wmts_tracks.local.sqlite3"
+
+[security]
+jwt_secret_env = "WMTS_JWT_SECRET"
+jwt_issuer = "wmts-gis"
+token_ttl_seconds = 3600
+allowed_origins = ["http://localhost:8080"]
+allowed_referers = ["http://localhost:8080"]
+api_key_rate_limit_per_minute = 6000
+
+# 本機開發便利：這把金鑰是 admin（能讀稽核、可用率並上傳影像），方便手動測試。**正式設定不要這樣做**，見 config/layers.toml。
+[[api_keys]]
+key_env = "WMTS_APIKEY_GIS_CLIENT"
+label = "本機測試用戶端"
+role = "admin"
+
+# 角色測試用（沒設環境變數就略過）：只能讀取／能上傳影像
+[[api_keys]]
+key_env = "WMTS_APIKEY_CLIENT_ONLY"
+label = "本機測試-僅讀取"
+role = "client"
+
+[[api_keys]]
+key_env = "WMTS_APIKEY_UPLOADER"
+label = "本機測試-影像上傳"
+role = "uploader"
+
+[[tilematrixsets]]
+identifier = "GoogleMapsCompatible"
+crs = "urn:ogc:def:crs:EPSG::3857"
+well_known_scale_set = "urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible"
+tile_width = 256
+tile_height = 256
+top_left_corner = [-20037508.342789244, 20037508.342789244]
+min_zoom = 0
+max_zoom = 21
+
+# TWD97 / TM2 zone 121 (EPSG:3826) 格網：已對照國土測繪中心(NLSC)官方 WMTS 服務
+# https://wmts.nlsc.gov.tw/97/wmts （TileMatrixSet「default028mm」，14 層、256×256、原點 50000 3000000，
+# 2026-10-10 取 GetCapabilities 逐層核對）。比例尺分母依 OGC 標準像元 0.28 mm 換算：resolution = 分母 × 0.00028。
+# 注意：NLSC 的 `/wmts`（無 /97）只有 EPSG:3857；EPSG:3826 在獨立端點 `/97/wmts`。
+# 已實際取 PHOTO3826 圖磚驗證：以此原點算出台北 101 所在的第 13 層圖磚，影像確實是該建物。
+# 另有 EPSG:3825（TM2 119°，澎湖、金門、馬祖）同組格網，本專案尚未提供。
+# 臺北市都發局的 TWD97 服務（historygis.udd.gov.taipei/WMTS_97）用另一組原點 (-5372600, 10001100)、16 層，與 NLSC **不同**，不可混用。
+[[tilematrixsets]]
+identifier = "TWD97_TM2_NLSC"
+crs = "urn:ogc:def:crs:EPSG::3826"
+tile_width = 256
+tile_height = 256
+top_left_corner = [50000.0, 3000000.0]
+# 每一層 (index = zoom level) 對應 [resolution_m_per_px, matrix_width, matrix_height]
+levels = [
+  [3307.2982812628134, 1.0, 1.0],  # 0: 1:1.18118e+07
+  [2645.838625010251, 1.0, 1.0],  # 1: 1:9.44942e+06
+  [1322.9193125051254, 2.0, 2.0],  # 2: 1:4.72471e+06
+  [661.4596562525627, 3.0, 4.0],  # 3: 1:2.36236e+06
+  [264.58386250102507, 8.0, 9.0],  # 4: 1:944942
+  [132.29193125051253, 15.0, 18.0],  # 5: 1:472471
+  [66.14596562525627, 29.0, 36.0],  # 6: 1:236236
+  [26.458386250102503, 72.0, 90.0],  # 7: 1:94494.2
+  [13.229193125051252, 143.0, 179.0],  # 8: 1:47247.1
+  [6.614596562525626, 285.0, 358.0],  # 9: 1:23623.6
+  [2.6458386250102506, 711.0, 895.0],  # 10: 1:9449.42
+  [1.3229193125051253, 1422.0, 1790.0],  # 11: 1:4724.71
+  [0.6614596562525626, 2844.0, 3579.0],  # 12: 1:2362.36
+  [0.26458386250102506, 7109.0, 8946.0],  # 13: 1:944.942
+]
+
+[[layers]]
+identifier = "orthophoto"
+title = "無人機正射影像（本機測試）"
+abstract_text = "本機測試用圖磚，見 ARCHITECTURE.md 第 6 節"
+tilematrixsets = ["GoogleMapsCompatible", "TWD97_TM2_NLSC"]
+format = "image/png"
+tile_dir = "tiles/orthophoto"
+bbox_wgs84 = [120.0, 22.5, 120.6, 23.3]
+
+# 本機測試用：驗證 wmts::get_tile() 讀 GeoPackage 圖磚來源那條路徑。
+# 圖資授權來源未確認，gpkg/ 不進版本庫（見 .gitignore），這個 layer
+# 只在本機測試設定檔存在，不會出現在 config/layers.toml（正式）或
+# config/layers.hfspace.toml（公開 demo）。
+#
+# Xiamen_3857.gpkg 取代原本的 Xiamen.gpkg（EPSG:4326、客製格網，需要另開
+# 自訂 CRS 面板才能看，見 static/index.html 舊的 XiamenCRS/gpkg-panel）：
+# 這份已經用 GDAL 重新投影成 EPSG:3857，解析度公式跟下面的
+# GoogleMapsCompatible 完全一致（實測 z9 解析度 305.7481131407013 m/px，
+# 跟公式算出來的 2πR/(256*2^9) 分毫不差）——所以直接沿用 GoogleMapsCompatible
+# 這個 TileMatrixSet，不用再另外定義一個。
+#
+# 但 GDAL 匯出的 tile_column/tile_row 是這個檔案自己的「局部」索引（從 0
+# 開始，只涵蓋實際範圍那一小塊），不是 TileMatrixSet 定義的「全域」
+# TileCol/TileRow（已實測驗證：z17 存的 tile_column 是 0..17，這塊地理範圍
+# 對應的全域 Web Mercator column 其實是 108538..108794）。local_origin_x/y
+# 就是用來換算這個差距的——兩個數字直接抄自這個檔案自己的
+# gpkg_contents.min_x / max_y（見 wmts::get_tile() 的換算邏輯與
+# ARCHITECTURE.md 第 10 節）。
+[[layers]]
+identifier = "xiamen_gpkg_demo"
+title = "廈門正射影像（GeoPackage 來源測試，本機限定）"
+abstract_text = "驗證 WMTS 伺服器直接讀 GeoPackage tiles extension 的圖磚來源；來源檔案授權未確認，不對外發布"
+tilematrixsets = ["GoogleMapsCompatible"]
+format = "image/png"
+gpkg = { path = "gpkg/Xiamen_3857.gpkg", table = "tile_data", local_origin_x = 13147818.579790778, local_origin_y = 2821405.3695482854 }
+bbox_wgs84 = [118.10886383056675, 24.508494148310607, 118.15717357785, 24.556803895593855]
+
+# 即時（近即時正射）輸出圖層：由 POST /api/v1/ingest/frame 持續更新，需 `cargo build --features ingest`。
+# cache_seconds 要很小，否則瀏覽器會一直看到舊圖磚。tiles/orthophoto_live 不進版本庫（見 .gitignore）。
+[[layers]]
+identifier = "orthophoto_live"
+title = "無人機近即時正射影像（模擬）"
+abstract_text = "ingest 端點即時鑲嵌的圖磚；模擬資料"
+tilematrixsets = ["GoogleMapsCompatible", "TWD97_TM2_NLSC"]
+format = "image/png"
+tile_dir = "tiles/orthophoto_live"
+bbox_wgs84 = [120.25, 23.08, 120.37, 23.18]
+cache_seconds = 2
+
+[ingest]
+layer = "orthophoto_live"
+# 地面解析度 = 相對高度 × gsd_per_agl。模擬相機：100 m 高 → 0.2646 m/像素（NLSC 第 13 層解析度）。
+# 真實 16 MP 相機要依焦距與像元大小重算（5 cm GSD @100 m ≈ 0.0005）。
+gsd_per_agl = 0.0026458386
+feather_px = 64
+targets = [
+  { tms = "GoogleMapsCompatible", zoom = 19, pyramid = 4 },
+  { tms = "TWD97_TM2_NLSC", zoom = 13, pyramid = 4 },
+]

@@ -1,0 +1,85 @@
+# EdgeOrtho demo configuration (used by demo/run_demo.py). Minimal: one live layer, one admin demo key.
+# Secrets come from environment variables; nothing sensitive is stored here.
+
+[server]
+bind = "127.0.0.1:8080"
+behind_reverse_proxy = true
+tls_cert = "certs/fullchain.pem"
+tls_key = "certs/privkey.pem"
+public_base_url = "http://localhost:8080"
+db_path = "wmts_tracks.local.sqlite3"
+
+[security]
+jwt_secret_env = "WMTS_JWT_SECRET"
+jwt_issuer = "wmts-gis"
+token_ttl_seconds = 3600
+allowed_origins = ["http://localhost:8080"]
+allowed_referers = ["http://localhost:8080"]
+api_key_rate_limit_per_minute = 6000
+
+[[api_keys]]
+key_env = "WMTS_APIKEY_GIS_CLIENT"
+label = "demo client"
+role = "admin"
+
+[[tilematrixsets]]
+identifier = "GoogleMapsCompatible"
+crs = "urn:ogc:def:crs:EPSG::3857"
+well_known_scale_set = "urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible"
+tile_width = 256
+tile_height = 256
+top_left_corner = [-20037508.342789244, 20037508.342789244]
+min_zoom = 0
+max_zoom = 21
+
+# TWD97 / TM2 zone 121 (EPSG:3826) 格網：已對照國土測繪中心(NLSC)官方 WMTS 服務
+# https://wmts.nlsc.gov.tw/97/wmts （TileMatrixSet「default028mm」，14 層、256×256、原點 50000 3000000，
+# 2026-10-10 取 GetCapabilities 逐層核對）。比例尺分母依 OGC 標準像元 0.28 mm 換算：resolution = 分母 × 0.00028。
+# 注意：NLSC 的 `/wmts`（無 /97）只有 EPSG:3857；EPSG:3826 在獨立端點 `/97/wmts`。
+# 已實際取 PHOTO3826 圖磚驗證：以此原點算出台北 101 所在的第 13 層圖磚，影像確實是該建物。
+# 另有 EPSG:3825（TM2 119°，澎湖、金門、馬祖）同組格網，本專案尚未提供。
+# 臺北市都發局的 TWD97 服務（historygis.udd.gov.taipei/WMTS_97）用另一組原點 (-5372600, 10001100)、16 層，與 NLSC **不同**，不可混用。
+[[tilematrixsets]]
+identifier = "TWD97_TM2_NLSC"
+crs = "urn:ogc:def:crs:EPSG::3826"
+tile_width = 256
+tile_height = 256
+top_left_corner = [50000.0, 3000000.0]
+# 每一層 (index = zoom level) 對應 [resolution_m_per_px, matrix_width, matrix_height]
+levels = [
+  [3307.2982812628134, 1.0, 1.0],  # 0: 1:1.18118e+07
+  [2645.838625010251, 1.0, 1.0],  # 1: 1:9.44942e+06
+  [1322.9193125051254, 2.0, 2.0],  # 2: 1:4.72471e+06
+  [661.4596562525627, 3.0, 4.0],  # 3: 1:2.36236e+06
+  [264.58386250102507, 8.0, 9.0],  # 4: 1:944942
+  [132.29193125051253, 15.0, 18.0],  # 5: 1:472471
+  [66.14596562525627, 29.0, 36.0],  # 6: 1:236236
+  [26.458386250102503, 72.0, 90.0],  # 7: 1:94494.2
+  [13.229193125051252, 143.0, 179.0],  # 8: 1:47247.1
+  [6.614596562525626, 285.0, 358.0],  # 9: 1:23623.6
+  [2.6458386250102506, 711.0, 895.0],  # 10: 1:9449.42
+  [1.3229193125051253, 1422.0, 1790.0],  # 11: 1:4724.71
+  [0.6614596562525626, 2844.0, 3579.0],  # 12: 1:2362.36
+  [0.26458386250102506, 7109.0, 8946.0],  # 13: 1:944.942
+]
+
+[[layers]]
+identifier = "orthophoto_live"
+title = "無人機近即時正射影像（模擬）"
+abstract_text = "ingest 端點即時鑲嵌的圖磚；模擬資料"
+tilematrixsets = ["GoogleMapsCompatible", "TWD97_TM2_NLSC"]
+format = "image/png"
+tile_dir = "tiles/orthophoto_live"
+bbox_wgs84 = [120.25, 23.08, 120.37, 23.18]
+cache_seconds = 2
+
+[ingest]
+layer = "orthophoto_live"
+# 地面解析度 = 相對高度 × gsd_per_agl。模擬相機：100 m 高 → 0.2646 m/像素（NLSC 第 13 層解析度）。
+# 真實 16 MP 相機要依焦距與像元大小重算（5 cm GSD @100 m ≈ 0.0005）。
+gsd_per_agl = 0.0026458386
+feather_px = 64
+targets = [
+  { tms = "GoogleMapsCompatible", zoom = 19, pyramid = 4 },
+  { tms = "TWD97_TM2_NLSC", zoom = 13, pyramid = 4 },
+]

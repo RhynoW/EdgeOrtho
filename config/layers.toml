@@ -1,0 +1,88 @@
+[server]
+bind = "0.0.0.0:8443"
+# true = 由前方的 nginx/Caddy 負責 TLS 1.3 termination 與憑證更新，本服務只監聽明文 HTTP。
+# false = 本服務直接以 tls_cert/tls_key 提供 HTTPS。
+behind_reverse_proxy = false
+tls_cert = "certs/fullchain.pem"
+tls_key = "certs/privkey.pem"
+# 對外可被 GIS 客戶端 / SDK 使用的 base URL，用於產生 GetCapabilities 內的 ResourceURL。
+public_base_url = "https://gis.example.com"
+db_path = "wmts_tracks.sqlite3"
+
+[security]
+# 正式環境請改由環境變數 WMTS_JWT_SECRET 注入，勿把密鑰提交進版本控制。
+jwt_secret_env = "WMTS_JWT_SECRET"
+jwt_issuer = "wmts-gis"
+token_ttl_seconds = 3600
+allowed_origins = ["https://gis.example.com"]
+allowed_referers = ["https://gis.example.com"]
+# 未帶 JWT、改用 API Key 的呼叫端，每把 Key 每分鐘的請求上限。
+api_key_rate_limit_per_minute = 600
+
+[[api_keys]]
+key_env = "WMTS_APIKEY_GIS_CLIENT"
+label = "GIS主系統"
+role = "client"   # 預設值：只能讀取。給 GIS 主系統這類只讀圖磚的用戶端。
+
+# 角色分權（見 src/auth/mod.rs）：`uploader`＝client＋上傳無人機影像；`admin`＝uploader＋稽核紀錄（讀取、驗證、匯出）與可用率報表。
+# 稽核含來源 IP 與被拒絕的存取，不要發給一般用戶端。沒設環境變數的金鑰會被略過（啟動時警告）。
+[[api_keys]]
+key_env = "WMTS_APIKEY_UPLOADER"
+label = "無人機影像上傳"
+role = "uploader"
+
+[[api_keys]]
+key_env = "WMTS_APIKEY_ADMIN"
+label = "管理者"
+role = "admin"
+
+[[tilematrixsets]]
+identifier = "GoogleMapsCompatible"
+crs = "urn:ogc:def:crs:EPSG::3857"
+well_known_scale_set = "urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible"
+tile_width = 256
+tile_height = 256
+top_left_corner = [-20037508.342789244, 20037508.342789244]
+min_zoom = 0
+max_zoom = 21
+
+# TWD97 / TM2 zone 121 (EPSG:3826) 格網：已對照國土測繪中心(NLSC)官方 WMTS 服務
+# https://wmts.nlsc.gov.tw/97/wmts （TileMatrixSet「default028mm」，14 層、256×256、原點 50000 3000000，
+# 2026-10-10 取 GetCapabilities 逐層核對）。比例尺分母依 OGC 標準像元 0.28 mm 換算：resolution = 分母 × 0.00028。
+# 注意：NLSC 的 `/wmts`（無 /97）只有 EPSG:3857；EPSG:3826 在獨立端點 `/97/wmts`。
+# 已實際取 PHOTO3826 圖磚驗證：以此原點算出台北 101 所在的第 13 層圖磚，影像確實是該建物。
+# 另有 EPSG:3825（TM2 119°，澎湖、金門、馬祖）同組格網，本專案尚未提供。
+# 臺北市都發局的 TWD97 服務（historygis.udd.gov.taipei/WMTS_97）用另一組原點 (-5372600, 10001100)、16 層，與 NLSC **不同**，不可混用。
+[[tilematrixsets]]
+identifier = "TWD97_TM2_NLSC"
+crs = "urn:ogc:def:crs:EPSG::3826"
+tile_width = 256
+tile_height = 256
+top_left_corner = [50000.0, 3000000.0]
+# 每一層 (index = zoom level) 對應 [resolution_m_per_px, matrix_width, matrix_height]
+levels = [
+  [3307.2982812628134, 1.0, 1.0],  # 0: 1:1.18118e+07
+  [2645.838625010251, 1.0, 1.0],  # 1: 1:9.44942e+06
+  [1322.9193125051254, 2.0, 2.0],  # 2: 1:4.72471e+06
+  [661.4596562525627, 3.0, 4.0],  # 3: 1:2.36236e+06
+  [264.58386250102507, 8.0, 9.0],  # 4: 1:944942
+  [132.29193125051253, 15.0, 18.0],  # 5: 1:472471
+  [66.14596562525627, 29.0, 36.0],  # 6: 1:236236
+  [26.458386250102503, 72.0, 90.0],  # 7: 1:94494.2
+  [13.229193125051252, 143.0, 179.0],  # 8: 1:47247.1
+  [6.614596562525626, 285.0, 358.0],  # 9: 1:23623.6
+  [2.6458386250102506, 711.0, 895.0],  # 10: 1:9449.42
+  [1.3229193125051253, 1422.0, 1790.0],  # 11: 1:4724.71
+  [0.6614596562525626, 2844.0, 3579.0],  # 12: 1:2362.36
+  [0.26458386250102506, 7109.0, 8946.0],  # 13: 1:944.942
+]
+
+[[layers]]
+identifier = "orthophoto"
+title = "無人機正射影像"
+abstract_text = "無人機拼接正射影像圖磚服務"
+tilematrixsets = ["GoogleMapsCompatible", "TWD97_TM2_NLSC"]
+format = "image/png"
+# 圖磚實體檔案根目錄，結構為 {tile_dir}/{tilematrixset}/{z}/{x}/{y}.png
+tile_dir = "tiles/orthophoto"
+bbox_wgs84 = [120.0, 22.5, 120.6, 23.3]
