@@ -2,7 +2,7 @@
 
 **Contest:** 2026 ASUS UGen AI League Innovation Hackathon · Stage I · **Body:** 17 slides (limit 20) + appendix
 **Consistent with:** ARCHITECTURE v2.2 and VIDEO_SCRIPT. Every number below appears in those documents.
-**Still to fill:** contact (slide 17). Team name is Sat_Dashboard; members are intentionally not listed.
+**Complete.** Team name is Sat_Dashboard; members are intentionally not listed.
 
 Design guidance (not slide text): one message per slide; always show the status tag *Built / Simulated / Planned* where a claim appears; use the screenshots in `demo/output/screens/` with attribution; no national-mapping-agency imagery, no keys, no real IPs.
 
@@ -237,7 +237,7 @@ Consistency: a tile is never half-written; the pyramid converges after writes st
 **Team:** Sat_Dashboard (members are not listed in the deck)
 **Repository:** github.com/RhynoW/EdgeOrtho (architecture, demo, tests; private until submission)
 **Demo video:** https://youtu.be/xqi6Gs8TofA
-**Contact:** `[TO FILL]`
+**Contact:** rhynowu@gmail.com · LinkedIn: https://www.linkedin.com/in/rhyno-wu-6b766771/
 
 **References**
 1. OGC WMTS 1.0.0 specification
