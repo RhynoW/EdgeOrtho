@@ -5,7 +5,7 @@
 2026 ASUS UGen AI League Innovation Hackathon · Stage I · Theme: Workplace AI · Battlefield: Lightning (ASUS UGen300 / Hailo-10H) · Finals track: Onsite
 Document status: v2.2 for external technical review. v1 (architecture-first) is kept as `ARCHITECTURE.v1-review.md`.
 v2.2 incorporates an independent review of v2.1 (scope of the live loop, resolution vs accuracy, edge-host split, terminology, audit scope, acceptance targets).
-Repository: `github.com/RhynoW/EdgeOrtho` (private until submission). The repository is a clean export: server source, simulation scripts, this document and the demo.
+Repository: `github.com/RhynoW/EdgeOrtho`. The repository is a clean export: server source, simulation scripts, this document and the demo.
 
 ---
 
