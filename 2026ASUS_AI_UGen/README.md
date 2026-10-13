@@ -49,7 +49,3 @@ Python deps: `numpy pillow rasterio pyproj torch transformers websockets`.
 | OpenStreetMap | ODbL | Base map in the viewer, attribution shown |
 
 No API keys, secrets or personal data are in this repository; keys are read from environment variables.
-
-## Static demo (Hugging Face Space)
-
-https://huggingface.co/spaces/RhynoWu/edgeortho-demo — precomputed tiles and candidates, no server. The entry code is a convenience gate checked in the browser; it is not a security control.

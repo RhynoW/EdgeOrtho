@@ -87,6 +87,7 @@ Candidate boxes additionally carry **"Candidates — not verified"**.
 |---|---|
 | Scene 4 | `python 2026ASUS_AI_UGen/demo/run_demo.py --sim <river_sim> --watch --pace 4 --det output/detections_river.geojson`; start the screen recorder when the console prints "Uploading starts in 8 s"; window 1600×900 |
 | Scene 5 | Add `&lat=<lat>&lng=<lon>&z=20` to the viewer URL, or use the stills in `demo/output/screens/` with a slow push-in |
+| Scenes 4–5, alternative source | A pre-built static version of the demo may be screen-recorded instead (precomputed tiles and candidates; no server needed). Unlock it before recording and hide the browser's address bar and tabs (app/kiosk window or full screen, or crop in the edit). **The address of that page must not appear anywhere in the video or the deck.** |
 | Scene 6 | Run the two scripts on a fresh server and clean database, one run each; crop the terminal so only PASS/FAIL lines show; **mask any key or IP** |
 | Scene 7 | Draw two bars from the numbers (PowerPoint or an image library) — do **not** reuse the earlier before/after GIF (its base map is third-party imagery with unconfirmed terms) |
 | Audio | Original or clearly licensed royalty-free music, below the narration level |
@@ -99,6 +100,7 @@ Candidate boxes additionally carry **"Candidates — not verified"**.
 - [ ] No national-mapping-agency imagery, no keys, no real IPs, no personal or contest-provided data
 - [ ] End card has CC BY 4.0 attribution and OSM credit
 - [ ] No statement that anything ran on the UGen300
+- [ ] No web address of any demo page visible in any frame (address bar, hover tooltip, tab strip, end card)
 - [ ] 1938 historical map not shown (service terms restrict commercial use) unless permission is confirmed
 - [ ] YouTube visibility "Unlisted"; link opens in a private window
 - [ ] The deck's last slide lists the video link and the repository link
