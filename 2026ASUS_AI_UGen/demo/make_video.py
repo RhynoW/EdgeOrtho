@@ -295,6 +295,17 @@ async def capture_live(a, tmp, durations):
     return live, cand, term
 
 
+def kokoro_wavs(a):
+    """Neural narration through demo/kokoro_tts.py, run in the environment that has kokoro-onnx installed."""
+    if not (a.kokoro_python and a.kokoro_models): sys.exit("--tts kokoro needs --kokoro-python and --kokoro-models")
+    tj = os.path.join(a.out, "kokoro_texts.json")
+    json.dump([s[2] for s in SCENES], open(tj, "w", encoding="utf8"), ensure_ascii=False)
+    r = subprocess.run([a.kokoro_python, os.path.join(HERE, "kokoro_tts.py"), "--models", a.kokoro_models, "--texts", tj, "--out", a.out,
+                        "--voice", a.kokoro_voice, "--speed", str(a.kokoro_speed)], capture_output=True, text=True)
+    if r.returncode: sys.exit("kokoro failed: " + (r.stderr or r.stdout)[-400:])
+    return [os.path.join(a.out, f"n{i}.wav") for i in range(len(SCENES))]
+
+
 def human_wavs(folder, outdir):
     """Normalise the user's scene_1..scene_8 recordings to mono 44.1 kHz 16-bit WAV, trim leading/trailing silence."""
     out = []
@@ -348,13 +359,18 @@ def main():
     ap.add_argument("--ingest-gap", type=float, default=0.11, help="seconds between frame submissions in the live scene")
     ap.add_argument("--narration-dir", default=None,
                     help="folder with your own recordings scene_1 ... scene_8 (wav, m4a, mp3, aac, flac); replaces the synthetic voice")
+    ap.add_argument("--tts", choices=["sapi", "kokoro"], default="sapi", help="synthetic voice engine: Windows SAPI (default) or Kokoro-82M neural voice")
+    ap.add_argument("--kokoro-python", default=None, help="python.exe of an environment with kokoro-onnx and soundfile installed")
+    ap.add_argument("--kokoro-models", default=None, help="folder with kokoro-v1.0.int8.onnx (or kokoro-v1.0.onnx) and voices-v1.0.bin")
+    ap.add_argument("--kokoro-voice", default="af_heart"); ap.add_argument("--kokoro-speed", type=float, default=1.0)
     ap.add_argument("--reuse-capture", action="store_true", help="reuse the screen capture saved in <out>/_capture (skips the 5-minute capture)")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     tmp = tempfile.mkdtemp(prefix="edgeortho_video_")
     try:
         print("1/4 narration ...", flush=True)
-        wavs = human_wavs(a.narration_dir, a.out) if a.narration_dir else tts([s[2] for s in SCENES], a.voice, a.out, a.rate)
+        wavs = (human_wavs(a.narration_dir, a.out) if a.narration_dir else
+                kokoro_wavs(a) if a.tts == "kokoro" else tts([s[2] for s in SCENES], a.voice, a.out, a.rate))
         infos = [wav_info(w) for w in wavs]
         rate, ch, sw = infos[0][0], infos[0][1], infos[0][2]
         gap = 0.6
