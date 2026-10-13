@@ -2,7 +2,7 @@
 
 **Contest:** 2026 ASUS UGen AI League Innovation Hackathon · Stage I · **Body:** 17 slides (limit 20) + appendix
 **Consistent with:** ARCHITECTURE v2.2 and VIDEO_SCRIPT. Every number below appears in those documents.
-**Items marked `[TO FILL]` need information only the team has.** Nothing marked `[TO FILL]` has been invented.
+**Still to fill:** demo video link and contact (slide 17). Team name is Sat_Dashboard; members are intentionally not listed.
 
 Design guidance (not slide text): one message per slide; always show the status tag *Built / Simulated / Planned* where a claim appears; use the screenshots in `demo/output/screens/` with attribution; no national-mapping-agency imagery, no keys, no real IPs.
 
@@ -14,7 +14,7 @@ Design guidance (not slide text): one message per slide; always show the status 
 *On-Device AI Turns Drone Imagery into Immediate, Auditable River-Patrol Map Intelligence*
 
 2026 ASUS UGen AI League Innovation Hackathon · Theme: Workplace AI · Battlefield: Lightning (ASUS UGen300 / Hailo-10H) · Finals track: Onsite
-Team: `[TO FILL: team name and members]` · Repository: github.com/RhynoW/EdgeOrtho
+Team: Sat_Dashboard · Repository: github.com/RhynoW/EdgeOrtho
 
 *Visual:* river-mosaic screenshot (`river_overview.png`) with attribution line.
 
@@ -63,7 +63,7 @@ Team: `[TO FILL: team name and members]` · Repository: github.com/RhynoW/EdgeOr
 | Data owner / auditor | Record of denied access, uploads and exports; proof the log was not altered |
 | Contractor | Push frames with an upload-only role |
 
-**Minimum viable customer:** one county water bureau or river-management office, one river reach. `[TO FILL: pilot candidate, if any]`
+**Minimum viable customer:** a river-management office, one river reach. **Proposed pilot candidate:** Second River Management Branch, Water Resources Agency, Ministry of Economic Affairs (no agreement yet; cooperation intent and trial procedure to be discussed).
 
 ---
 
@@ -190,7 +190,7 @@ Consistency: a tile is never half-written; the pyramid converges after writes st
 | General GIS / map server | No detection, no review loop | Candidates are map-native, with review status (planned) |
 | Detection-only tools | Boxes without a governed map | Georeferenced candidates on standard OGC WMTS |
 
-**The combination:** live mosaic + object candidates + governed delivery in one loop, on interfaces existing GIS clients already read. `[TO FILL: add named competitors only if verified]`
+**The combination:** live mosaic + object candidates + governed delivery in one loop, on interfaces existing GIS clients already read.
 
 ---
 
@@ -202,9 +202,9 @@ Consistency: a tile is never half-written; the pyramid converges after writes st
 | Drone survey contractors | Per-project or subscription access |
 | Integrators | API access, edge-box bundles |
 
-**Cost to a customer** includes edge host, accelerator (vendor listing ≈ USD 300), communications, deployment, labelling, maintenance and security. `[TO FILL: pricing assumptions]`
+**Cost to a customer** includes edge host, accelerator (vendor listing ≈ USD 300), communications, deployment, labelling, maintenance and security. Pricing assumptions will be evaluated after ASUS hardware is obtained.
 **Value measured as:** time to first visible candidate, review minutes per kilometre, valid candidates, share of missions needing a re-fly, report turnaround.
-**Pilot questions:** `[TO FILL: results of customer conversations]`
+**Next step:** discuss cooperation intent and trial procedures with the Second River Management Branch, Water Resources Agency, Ministry of Economic Affairs.
 
 ---
 
@@ -234,7 +234,7 @@ Consistency: a tile is never half-written; the pyramid converges after writes st
 
 ## Slide 17 — Team, repository and references
 
-**Team:** `[TO FILL: names, roles, affiliation]`
+**Team:** Sat_Dashboard (members are not listed in the deck)
 **Repository:** github.com/RhynoW/EdgeOrtho (architecture, demo, tests; private until submission)
 **Demo video:** `[TO FILL: YouTube unlisted link]`
 **Contact:** `[TO FILL]`
