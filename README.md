@@ -19,6 +19,7 @@ candidates, and everything is served behind role-based access with a tamper-evid
 | `2026ASUS_AI_UGen/demo/detect_frames.py` | Per-frame detection and georeferencing of the detections |
 | `2026ASUS_AI_UGen/demo/merge_detections.py` | Merge duplicates across overlapping frames, write GeoJSON |
 | `2026ASUS_AI_UGen/demo/run_demo.py`, `2026ASUS_AI_UGen/demo/viewer.html` | Ingest into a fresh server (EPSG:3857 z21) and show mosaic + candidates |
+| `2026ASUS_AI_UGen/demo/run_viewer.bat` | One-click viewer on Windows (frames if missing, fresh server, Edge window with live mosaic and candidates) |
 | `2026ASUS_AI_UGen/demo/output/` | Detections GeoJSON and viewer screenshots |
 | `src/`, `Cargo.toml`, `config/` | Rust (Axum) WMTS server with ingest, roles, audit chain, availability |
 | `scripts/sim/`, `docs/ortho-simulation.md` | Simulation, load and verification scripts and their documentation |

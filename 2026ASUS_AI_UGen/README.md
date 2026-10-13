@@ -19,6 +19,7 @@ candidates, and everything is served behind role-based access with a tamper-evid
 | `demo/detect_frames.py` | Per-frame detection and georeferencing of the detections |
 | `demo/merge_detections.py` | Merge duplicates across overlapping frames, write GeoJSON |
 | `demo/run_demo.py`, `demo/viewer.html` | Ingest into a fresh server (EPSG:3857 z21) and show mosaic + candidates |
+| `demo/run_viewer.bat` | One-click viewer on Windows: builds frames if missing, starts a fresh server, opens Edge with the live mosaic and candidates (set `EDGEORTHO_SIM` to reuse frames; extra arguments go to `run_demo.py`) |
 | `demo/output/` | Detections GeoJSON and viewer screenshots |
 | `src/`, `Cargo.toml` | Rust (Axum) WMTS server with ingest, roles, audit chain, availability (only in the full repository export) |
 
