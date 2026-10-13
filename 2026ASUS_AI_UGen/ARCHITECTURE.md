@@ -41,7 +41,7 @@ Every claim in this document carries one of three tags. This is deliberate: the 
 | Detection candidates on the river segment | 6 merged candidates from 28 raw detections, **unverified** |
 | Detector latency (development GPU, not UGen300) | p50 1.0 s, p95 1.7 s per 1536×1024 frame |
 
-**What is not demonstrated.** Live per-frame inference, sidecar ingestion and server-managed candidate publication; detection accuracy (no ground truth); UGen300 latency/throughput/power; real-camera georeferencing accuracy; long-term availability. Section 9 lists these.
+**What is not demonstrated.** Live per-frame inference, sidecar ingestion and server-managed candidate publication; detection accuracy (no ground truth); UGen300 latency/throughput/power; real-camera georeferencing accuracy; long-term availability. Section 9 lists these. A 5 cm-class capacity model exists as an estimate only (section 5.4).
 
 ---
 
@@ -185,6 +185,30 @@ Concurrency scan under 3× overload peaks at 8 workers (5.49 frames/s). The cons
 - **Audit scope**: denied requests (401/403/429/503), ingest outcomes, exports and retention pruning. **Successful tile reads, candidate queries and human review actions are not logged today**, so the log cannot answer "who viewed what". Review events, status changes and sessions are Stage II work.
 - **Availability**: per-minute samples, minute is up iff there is a record, all probes pass and 5xx ≤ 5 %; unauthenticated `/readyz` for an external prober.
 *Limits:* the chain head must be anchored externally by an operator (and the anchor store must sit in a different permission domain from the database, otherwise it adds nothing); the log is tamper-**evident**, not tamper-proof. Availability is self-measured until an external prober runs long-term; it is a monitoring report, not a contractual SLA (reporting period, scheduled service time, maintenance exclusions and probe path would have to be defined, and the probe should fetch an authenticated tile, not only `/readyz`).
+
+### 5.4 Capacity model for 5 cm-class operation **[Estimate — arithmetic, not measurement]**
+
+Purpose: turn the "5 cm GSD is not measured" gap into a quantified plan. Assumptions: DJI Phantom 4 RTK class camera (13.2 × 8.8 mm sensor, 5472 × 3648 px, 8.8 mm lens, pixel pitch ≈ 2.41 µm), 80 % forward and 70 % side overlap, 10 m/s ground speed, nadir imagery, flat terrain.
+
+| Quantity | Source data GSD 3.64 cm | Requirement GSD 5 cm |
+|---|---|---|
+| Flight height AGL (GSD = AGL × pitch / focal length) | ≈ 133 m | ≈ 182 m (check the applicable altitude limit; at a lower height the GSD is finer than 5 cm) |
+| Frame footprint | ≈ 199 × 133 m | ≈ 274 × 182 m |
+| Distance between exposures / between flight lines | ≈ 26.6 m / 59.8 m | ≈ 36.5 m / 82.1 m |
+| Exposure interval at 10 m/s | ≈ 2.7 s (0.38 frame/s) | ≈ 3.7 s (0.27 frame/s) |
+| New ground per frame | ≈ 0.53 ha | ≈ 1.0 ha |
+| 2,000 frames per month (requirement) | ≈ 1,060 ha | ≈ 2,000 ha (≈ 20 km²) |
+| Frames per flight hour | ≈ 1,360 | ≈ 990 |
+
+**Server side (estimate).** The demo ingested 1.6 MP frames at 7.0–14.5 frames/s with four uploaders on one machine. Real frames carry about 13× the pixels. *If* ingest cost scales roughly linearly with pixels (an assumption, not a measurement), the same machine would handle on the order of 0.5–1 frame/s of full-size frames: above the 0.27 frame/s one drone produces, i.e. a few drones per machine, and far above the 2,000-frames-per-month requirement (≈ 67 frames/day). This must be re-measured with real-size frames.
+
+**Uplink (assumption).** At 6–10 MB per JPEG (to be measured) and 0.27 frame/s, one drone needs roughly 13–22 Mbit/s sustained.
+
+**Edge side (budget the device must meet, not a result).** With 640 × 640 model input and 25 % overlap, a full-size frame is cut into about 96 crops; at one frame per 3.7 s that is a budget of about 38 ms per crop for decode-independent inference, merge and georeferencing combined. Down-scaling the frame by 0.5 cuts this to about 24 crops (≈ 150 ms per crop) but a 0.5 m person then covers only about 5 px at 5 cm GSD, so down-scaling trades off small-object recall. Whether the Hailo-10H meets either budget is **unknown** until measured on the device.
+
+**Division of work.** The UGen300 does inference only; the edge host does decode, tiling, merge, georeferencing and upload; the server does mosaic and publication. The three bottlenecks are measured separately (section 8).
+
+**What may be claimed:** "a capacity model for a 5 cm-class workflow has been established; Stage II measures it". **Not** "5 cm is supported".
 
 ---
 
