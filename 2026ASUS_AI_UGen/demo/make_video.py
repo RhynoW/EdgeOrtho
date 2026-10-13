@@ -42,7 +42,7 @@ SCENES = [
     ("idea", "Each frame is georeferenced and merged into a tile pyramid within seconds. In stage two, a detector running on an edge host with an ASUS UGen300 will flag objects of interest at capture time.",
      "Each frame is georeferenced and merged into a tile pyramid within seconds. In stage two, a detector running on an edge host with an ASUS U Gen three hundred will flag objects of interest at capture time."),
     ("live", "This is a replay of a simulated flight over the Touchian River in Hsinchu, built from real orthophotography at 3.6 centimetres per pixel. As frames arrive, the map grows tile by tile.",
-     "This is a replay of a simulated flight over the Touchian River in Hsinchu, built from real orthophotography at three point six centimetres per pixel. As frames arrive, the map grows tile by tile."),
+     "This is a replay of a simulated flight over the Toe-chyen River in Shin-joo, built from real orthophotography at three point six centimetres per pixel. As frames arrive, the map grows tile by tile."),
     ("cand", "The detections you see now were computed ahead of time on a desktop GPU. Objects around the channel and embankment appear as candidates, for human review. They are not verified findings, and the labels are still noisy.",
      "The detections you see now were computed ahead of time on a desktop G P U. Objects around the channel and embankment appear as candidates, for human review. They are not verified findings, and the labels are still noisy."),
     ("gov", "Access is role-based. Denied requests, uploads and exports go into a hash-chained log. Change one row, and verification fails.",
