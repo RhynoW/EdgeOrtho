@@ -244,45 +244,60 @@ async def capture_live(a, tmp, durations):
                 return Image.open(io.BytesIO(base64.b64decode(r["result"]["data"]))).convert("RGB")
             await call("Page.enable"); await call("Runtime.enable")
             await call("Emulation.setDeviceMetricsOverride", width=1280, height=int((H - 44) / 1.5), deviceScaleFactor=1.5, mobile=False)
-            url = (f"http://127.0.0.1:{R.VIEW_PORT}/viewer.html?base=http://127.0.0.1:{a.port}&key={R.KEY}&layer=orthophoto_live&det={a.det}&live=0.8&lat=24.8255&lng=120.9832&z=19")
+            url = (f"http://127.0.0.1:{R.VIEW_PORT}/viewer.html?base=http://127.0.0.1:{a.port}&key={R.KEY}&layer=orthophoto_live&det={a.det}&lat=24.8255&lng=120.9832&z=19")
             await call("Page.navigate", url=url); await asyncio.sleep(3)
+            # no tile fade-in: a screenshot taken right after 'load' must show fully opaque tiles
+            await ev("map._fadeAnimated = false; map.options.fadeAnimation = false; map.getContainer().classList.remove('leaflet-fade-anim'); 0")
             await ev("document.getElementById('t-det').click(); 0")        # detections off while the mosaic grows
-            # ---- scene 4: paced ingest while capturing
-            frames = man["frames"]
+            # Deterministic capture: every picture is rendered only after its tiles have loaded, one state per ingested frame,
+            # so the result is smooth (no dropped or repeated screenshots) regardless of how fast this machine is.
             base = f"http://127.0.0.1:{a.port}"
-            stop = threading.Event()
-            def feeder():
-                def one(f):
-                    data = open(os.path.join(a.sim, "frames", f["file"]), "rb").read()
-                    for _ in range(10):
-                        s, j, dt = R.post(f"{base}/api/v1/ingest/frame?session_id=video", data)
-                        if s in (503, 409): time.sleep(2); continue
-                        return s
-                    return 0
-                with ThreadPoolExecutor(4) as ex:
-                    for f in frames:
-                        ex.submit(one, f); time.sleep(a.ingest_gap)
-                stop.set()
-            th = threading.Thread(target=feeder, daemon=True); th.start()
-            t0 = time.time()
-            while not stop.is_set() and time.time() - t0 < 90:
-                live.append(await shot()); await asyncio.sleep(0.15)
-            th.join(timeout=60); await asyncio.sleep(4.5)
-            for _ in range(6): live.append(await shot())
-            # ---- scene 5: fly-in on a candidate, then detections on/off
-            await ev("document.getElementById('t-det').click(); 0"); await asyncio.sleep(1.5)
-            for _ in range(10): cand.append(await shot()); await asyncio.sleep(0.1)
-            target = await ev("(()=>{let best=null; detLayer.eachLayer(l=>{ if(!best) best=l; }); return best? [best.getBounds().getCenter().lat, best.getBounds().getCenter().lng]:null})()")
-            if target:
-                await ev(f"map.flyTo([{target[0]},{target[1]}], 21, {{duration: 7}}); 0")
-                tt = time.time()
-                while time.time() - tt < 7.5:
-                    cand.append(await shot()); await asyncio.sleep(0.05)
-                for _ in range(12): cand.append(await shot()); await asyncio.sleep(0.1)
-                await ev("document.getElementById('t-det').click(); 0"); await asyncio.sleep(1.5)
-                for _ in range(14): cand.append(await shot()); await asyncio.sleep(0.1)
-                await ev("document.getElementById('t-det').click(); 0"); await asyncio.sleep(1.5)
-                for _ in range(14): cand.append(await shot()); await asyncio.sleep(0.1)
+            await ev("""window.__refresh = () => new Promise((res) => {
+                const n = new Mosaic(mosaicOpts).addTo(map); n.setOpacity(mosaic.options.opacity); let done = false;
+                const fin = () => { if (done) return; done = true; const old = mosaic; mosaic = n; map.removeLayer(old); res(true); };
+                n.once('load', fin); setTimeout(fin, 3000); }); 0""")
+            async def wait_tiles(limit=4.0):
+                t_end = time.time() + limit
+                while time.time() < t_end:
+                    if await ev("document.querySelectorAll('.leaflet-tile-loading').length") == 0: return
+                    await asyncio.sleep(0.04)
+            loop = asyncio.get_event_loop()
+            # ---- scene 4: ingest frame by frame, one picture per frame
+            for f in man["frames"]:
+                data = open(os.path.join(a.sim, "frames", f["file"]), "rb").read()
+                for _ in range(10):
+                    s_, j_, dt_ = await loop.run_in_executor(None, R.post, f"{base}/api/v1/ingest/frame?session_id=video", data)
+                    if s_ in (503, 409): await asyncio.sleep(1.0); continue
+                    break
+                await ev("window.__refresh()")
+                live.append(await shot())
+            for _ in range(8): live.append(live[-1])
+            # ---- scene 5: detections on, camera glides in on the best-supported candidate, then detections off/on
+            gj = json.load(open(os.path.join(HERE, a.det), encoding="utf8"))
+            best = max(gj["features"], key=lambda f: f["properties"].get("frames", 0))
+            tlon, tlat = best["geometry"]["coordinates"]
+            await ev("document.getElementById('t-det').click(); 0"); await asyncio.sleep(0.6)
+            await ev("map.options.zoomSnap = 0; map.options.zoomDelta = 0.25; 0")
+            lat0, lng0, z0, z1 = 24.8255, 120.9832, 19.0, 21.0
+            async def view(lat, lng, z):
+                # force the tile layers to create the tiles for this exact view now (panning at one zoom level would otherwise
+                # update them only after Leaflet's 200 ms throttle, i.e. after the screenshot)
+                await ev(f"map.setView([{lat},{lng}], {z}, {{animate: false}}); map.eachLayer((l) => {{ if (l._update) l._update(); }}); 0")
+                await asyncio.sleep(0.05); await wait_tiles()
+            await view(lat0, lng0, z0)
+            for _ in range(18): cand.append(await shot())
+            N = 150
+            for i in range(N):
+                t = i / (N - 1); e = t * t * (3 - 2 * t)
+                await view(lat0 + (tlat - lat0) * e, lng0 + (tlon - lng0) * e, z0 + (z1 - z0) * e)
+                cand.append(await shot())
+            for _ in range(22): cand.append(cand[-1])
+            await ev("document.getElementById('t-det').click(); 0"); await wait_tiles(); await asyncio.sleep(0.3)
+            im = await shot()
+            for _ in range(24): cand.append(im)
+            await ev("document.getElementById('t-det').click(); 0"); await wait_tiles(); await asyncio.sleep(0.3)
+            im = await shot()
+            for _ in range(24): cand.append(im)
         # ---- scene 6: real console output of the audit-chain tamper test against this server
         db = os.path.join(tmp, "demo.sqlite3")
         r = subprocess.run([sys.executable, "-X", "utf8", os.path.join(R.ROOT, "scripts", "sim", "test_audit_chain.py"), "--base", base, "--key", R.KEY, "--db", db],
@@ -325,6 +340,8 @@ def human_wavs(folder, outdir):
 
 def save_capture(outdir, live, cand, term):
     d = os.path.join(outdir, "_capture"); os.makedirs(d, exist_ok=True)
+    for f in os.listdir(d):
+        if f.endswith(".jpg"): os.remove(os.path.join(d, f))
     for name, frames in (("live", live), ("cand", cand)):
         for i, im in enumerate(frames): im.save(os.path.join(d, f"{name}_{i:04d}.jpg"), "JPEG", quality=90)
     json.dump(term, open(os.path.join(d, "term.json"), "w", encoding="utf8"), ensure_ascii=False)
@@ -338,6 +355,21 @@ def load_capture(outdir):
         fs = sorted(f for f in os.listdir(d) if f.startswith(prefix + "_") and f.endswith(".jpg"))
         return [Image.open(os.path.join(d, f)).convert("RGB") for f in fs]
     return frames("live"), frames("cand"), json.load(open(os.path.join(d, "term.json"), encoding="utf8"))
+
+
+def deglitch(frames, thr=18.0):
+    """Replace one-off glitch frames (a tile level that had not finished loading) by the previous picture.
+    A frame is a glitch when it differs strongly from both neighbours while those two are similar to each other."""
+    import numpy as np
+    if len(frames) < 3: return frames
+    th = [np.asarray(f.convert("L").resize((96, 54)), dtype=np.int16) for f in frames]
+    out, fixed = list(frames), 0
+    for i in range(1, len(frames) - 1):
+        a = np.abs(th[i] - th[i - 1]).mean(); b = np.abs(th[i] - th[i + 1]).mean(); c = np.abs(th[i - 1] - th[i + 1]).mean()
+        if a > thr and b > thr and c < thr * 0.6:
+            out[i] = out[i - 1]; th[i] = th[i - 1]; fixed += 1
+    if fixed: print(f"   deglitch: replaced {fixed} glitch frame(s)", flush=True)
+    return out
 
 
 def sample(frames, n):
@@ -374,11 +406,12 @@ def main():
         infos = [wav_info(w) for w in wavs]
         rate, ch, sw = infos[0][0], infos[0][1], infos[0][2]
         gap = 0.6
-        MIN = {"problem": 10, "need": 11, "idea": 14, "live": 26, "cand": 32, "gov": 14, "scale": 20, "stage2": 18}
+        MIN = {"problem": 10, "need": 11, "idea": 14, "live": 19, "cand": 16, "gov": 14, "scale": 20, "stage2": 18}
         durs = [round(max(i[3] + gap + 0.4, MIN[k]), 2) for (k, _, _), i in zip(SCENES, infos)]
         print("   narration seconds:", [round(i[3], 1) for i in infos], "total scenes", round(sum(durs), 1), flush=True)
         print("2/4 screen capture (server + headless Edge) ...", flush=True)
         live, cand, term = load_capture(a.out) if a.reuse_capture else save_capture(a.out, *asyncio.run(capture_live(a, tmp, durs)))
+        live, cand = deglitch(live), deglitch(cand)
         print(f"   captured live {len(live)}, candidates {len(cand)}, console lines {len(term)}", flush=True)
         # per-scene frame generators
         fps = a.fps
