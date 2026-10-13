@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EdgeOrtho demo</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root { --navy:#0b1f3a; --blue:#0097e0; --silver:#c9d1db; --amber:#f5a623; }
+  html, body { height: 100%; margin: 0; font: 14px/1.45 Arial, "Segoe UI", sans-serif; color: #fff; background: var(--navy); }
+  #map { position: absolute; inset: 0; background: #111; }
+  .gate { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; background: var(--navy); }
+  .gate .box { width: min(420px, 90vw); padding: 28px; border-radius: 14px; background: #10294b; box-shadow: 0 8px 30px rgba(0,0,0,.45); }
+  .gate h1 { margin: 0 0 4px; font-size: 28px; }
+  .gate .sub { color: var(--silver); margin-bottom: 18px; font-size: 13px; }
+  .gate input { width: 100%; box-sizing: border-box; padding: 11px 12px; border-radius: 8px; border: 1px solid #36527a; background: #0b1f3a; color: #fff; font-size: 16px; }
+  .gate button { margin-top: 12px; width: 100%; padding: 11px; border: 0; border-radius: 8px; background: var(--blue); color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .gate .err { color: #ff8a80; min-height: 20px; margin-top: 8px; font-size: 13px; }
+  .panel { position: absolute; z-index: 1000; left: 12px; top: 12px; width: 310px; max-width: calc(100vw - 24px); padding: 12px 14px; border-radius: 10px;
+           background: rgba(11,31,58,.93); box-shadow: 0 2px 10px rgba(0,0,0,.4); }
+  .panel h2 { margin: 0 0 2px; font-size: 16px; }
+  .panel .sub { color: var(--silver); font-size: 12px; margin-bottom: 8px; }
+  .panel label { display: flex; gap: 8px; align-items: center; margin: 5px 0; }
+  .panel .row { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+  .panel button.jump { flex: 1; padding: 7px 8px; border: 1px solid #36527a; border-radius: 7px; background: #10294b; color: #fff; cursor: pointer; font-size: 12.5px; }
+  .panel button.jump:hover { border-color: var(--blue); }
+  .legend { font-size: 12px; margin-top: 6px; }
+  .warn { margin-top: 8px; padding: 6px 8px; border-radius: 6px; background: rgba(245,166,35,.16); color: #ffd58a; font-size: 12px; }
+  .strip { position: absolute; z-index: 1000; left: 12px; right: 12px; bottom: 28px; padding: 7px 12px; text-align: center; font-weight: 700; font-size: 12.5px;
+           border-radius: 8px; background: rgba(11,31,58,.93); pointer-events: none; }
+  .leaflet-control-attribution { font-size: 10.5px; }
+</style>
+</head>
+<body>
+<div class="gate" id="gate">
+  <form class="box" id="gate-form" autocomplete="off">
+    <h1>EdgeOrtho</h1>
+    <div class="sub">River-patrol map demo · 2026 ASUS UGen AI League · Stage I</div>
+    <input id="code" type="password" placeholder="Access code" autofocus>
+    <button type="submit">Enter</button>
+    <div class="err" id="err"></div>
+  </form>
+</div>
+<div id="map" hidden></div>
+<div class="panel" id="panel" hidden>
+  <h2>EdgeOrtho · river-patrol demo</h2>
+  <div class="sub">Touchian River, Hsinchu City · simulated flight on a real 3.6 cm orthophoto</div>
+  <div class="row">
+    <button class="jump" id="go-river">River channel</button>
+    <button class="jump" id="go-bridge">Bridge &amp; parking lot</button>
+  </div>
+  <label><input type="checkbox" id="t-mosaic" checked> Mosaic (EPSG:3857, z17–z21 pyramid)</label>
+  <div class="row"><span>Opacity</span><input id="op" type="range" min="0" max="100" value="100" style="flex:1"></div>
+  <label><input type="checkbox" id="t-det" checked> Candidates (GeoJSON)</label>
+  <div class="legend">
+    <span style="color:#ef4444">■</span> vehicle <span style="color:#f97316">■</span> machinery <span style="color:#a855f7">■</span> person
+    <span style="color:#0ea5e9">■</span> boat <span style="color:#eab308">■</span> structure <span style="color:#22c55e">■</span> debris
+  </div>
+  <div class="warn">Prototype: zero-shot detector candidates for human review. Not verified; no ground truth. Class names are unreliable (e.g. tarpaulin plots appear as “boat”). UGen300 measurements are a Stage II task.</div>
+</div>
+<div class="strip" id="strip" hidden>Synthetic flight replay · Precomputed detections · Desktop GPU prototype · No UGen300 measurements yet</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const CODE_SHA256 = "5d11339ba565bff5d4b2137a28fe440999af3f54980c36e6c6b76f012c28f6c5"; // SHA-256 of the access code (lower-case)
+const COLORS = { vehicle: "#ef4444", machinery: "#f97316", person: "#a855f7", boat: "#0ea5e9", structure: "#eab308", debris: "#22c55e" };
+const $ = (id) => document.getElementById(id);
+let started = false;
+
+async function sha256Hex(s) {
+  const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+function unlock() {
+  $("gate").remove();
+  ["map", "panel", "strip"].forEach((id) => ($(id).hidden = false));
+  start();
+}
+$("gate-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const ok = (await sha256Hex($("code").value.trim().toLowerCase())) === CODE_SHA256;
+  if (ok) { try { sessionStorage.setItem("eo_ok", "1"); } catch (_) {} unlock(); }
+  else { $("err").textContent = "Incorrect access code."; $("code").select(); }
+});
+try { if (sessionStorage.getItem("eo_ok") === "1") window.addEventListener("DOMContentLoaded", unlock); } catch (_) {}
+
+function start() {
+  if (started) return; started = true;
+  const map = L.map("map", { center: [24.8266, 120.9810], zoom: 18, maxZoom: 22 });
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxNativeZoom: 19, maxZoom: 22,
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
+  const mosaic = L.tileLayer("tiles/GoogleMapsCompatible/{z}/{x}/{y}.webp", { minZoom: 14, minNativeZoom: 17, maxNativeZoom: 21, maxZoom: 22,
+    attribution: 'Imagery: Water Resources Agency MOEA, Hsinchu City EPB, Taiwan Ecological Society, FeiMao (CC BY 4.0, via OpenAerialMap)' }).addTo(map);
+  const det = L.layerGroup().addTo(map);
+  const bounds = {};
+  function load(name, url) {
+    return fetch(url).then((r) => r.json()).then((gj) => {
+      const pts = [];
+      gj.features.forEach((f) => {
+        const [lon, lat] = f.geometry.coordinates, p = f.properties;
+        const w = (p.size_m[0] || 3) / 2, h = (p.size_m[1] || 3) / 2;
+        const dLat = h / 111320, dLon = w / (111320 * Math.cos((lat * Math.PI) / 180));
+        L.rectangle([[lat - dLat, lon - dLon], [lat + dLat, lon + dLon]], { color: COLORS[p.category] || "#ef4444", weight: 2, fillOpacity: 0.12 })
+          .bindPopup(`<b>${p.label}</b><br>seen in ${p.frames} frame(s)<br>best score ${p.best_score}<br>class votes: ${JSON.stringify(p.class_votes)}<br><i>candidate, not verified</i>`)
+          .addTo(det);
+        pts.push([lat, lon]);
+      });
+      bounds[name] = L.latLngBounds(pts).pad(0.5);
+    });
+  }
+  Promise.all([load("river", "detections_river.geojson"), load("bridge", "detections_bridge.geojson")]).then(() => map.fitBounds(bounds.river));
+  $("go-river").onclick = () => bounds.river && map.fitBounds(bounds.river);
+  $("go-bridge").onclick = () => bounds.bridge && map.fitBounds(bounds.bridge);
+  $("t-mosaic").onchange = (e) => (e.target.checked ? map.addLayer(mosaic) : map.removeLayer(mosaic));
+  $("t-det").onchange = (e) => (e.target.checked ? map.addLayer(det) : map.removeLayer(det));
+  $("op").oninput = (e) => mosaic.setOpacity(e.target.value / 100);
+}
+</script>
+</body>
+</html>

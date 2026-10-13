@@ -21,6 +21,7 @@ candidates, and everything is served behind role-based access with a tamper-evid
 | `demo/run_demo.py`, `demo/viewer.html` | Ingest into a fresh server (EPSG:3857 z21) and show mosaic + candidates |
 | `demo/run_viewer.bat` | One-click viewer on Windows: builds frames if missing, starts a fresh server, opens Edge with the live mosaic and candidates (set `EDGEORTHO_SIM` to reuse frames; extra arguments go to `run_demo.py`) |
 | `demo/output/` | Detections GeoJSON and viewer screenshots |
+| `static_demo/` | Static demo site published as a Hugging Face static Space (`index.html` with an access-code gate, Space `README.md`); tiles are produced by `demo/export_static_demo.py` and converted to WebP |
 | `src/`, `Cargo.toml` | Rust (Axum) WMTS server with ingest, roles, audit chain, availability (only in the full repository export) |
 
 ## Reproduce the demo (Windows / Linux)
@@ -48,3 +49,7 @@ Python deps: `numpy pillow rasterio pyproj torch transformers websockets`.
 | OpenStreetMap | ODbL | Base map in the viewer, attribution shown |
 
 No API keys, secrets or personal data are in this repository; keys are read from environment variables.
+
+## Static demo (Hugging Face Space)
+
+https://huggingface.co/spaces/RhynoWu/edgeortho-demo — precomputed tiles and candidates, no server. The entry code is a convenience gate checked in the browser; it is not a security control.
