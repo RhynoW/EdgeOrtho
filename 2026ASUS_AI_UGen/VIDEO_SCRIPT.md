@@ -1,6 +1,6 @@
 # EdgeOrtho — Demo Video: Structure and Narration Script
 
-**Contest:** 2026 ASUS UGen AI League Innovation Hackathon, Stage I · **Length:** 2:52 (limit 3:00) · **Language:** English narration and subtitles · **Upload:** YouTube, "Unlisted" (anyone with the link can view)
+**Contest:** 2026 ASUS UGen AI League Innovation Hackathon, Stage I · **Length:** 2:28 draft (limit 3:00) · **Language:** English narration and subtitles · **Upload:** YouTube, "Unlisted" (anyone with the link can view)
 **Version:** matches ARCHITECTURE v2.2 — the video must not claim more than that document does.
 
 ---
@@ -24,7 +24,7 @@ Candidate boxes additionally carry **"Candidates — not verified"**.
 | 7 | 2:15–2:38 | Scale (simulation + estimate) | Two bars: 79 s → 4.4 s median capture-to-visible ("22 simulated drones · one machine"); then one line card: **5 cm imagery ≈ one frame every 3.7 s per drone — estimate** | Drawn from numbers, no imagery |
 | 8 | 2:38–2:52 | Stage II | Timeline: reference model on device → labelled set → measured latency/throughput; closing title and attribution | Text animation |
 
-## 3. Narration (read straight through)
+## 3. Narration (read straight through; this is the text of the generated draft video)
 
 > **[1]** River patrols are flown by drone, but the results usually arrive after the flight, as files, apart from the map.
 >
@@ -32,17 +32,17 @@ Candidate boxes additionally carry **"Candidates — not verified"**.
 >
 > **[3]** Each frame is georeferenced and merged into a tile pyramid within seconds. In stage two, a detector running on an edge host with an ASUS UGen300 will flag objects of interest at capture time.
 >
-> **[4]** This is a replay of a simulated flight over the Touchian River in Hsinchu, built from real orthophotography at three point six centimetres per pixel. As frames arrive, the map grows tile by tile. The detections you will see next were computed ahead of time on a desktop GPU.
+> **[4]** This is a replay of a simulated flight over the Touchian River in Hsinchu, built from real orthophotography at 3.6 centimetres per pixel. As frames arrive, the map grows tile by tile.
 >
-> **[5]** Objects around the channel and embankment appear as candidates: tarpaulin-covered plots, piles, vehicles. They are for human review. They are not verified findings, and the labels are still noisy.
+> **[5]** The detections you see now were computed ahead of time on a desktop GPU. Objects around the channel and embankment appear as candidates, for human review. They are not verified findings, and the labels are still noisy.
 >
 > **[6]** Access is role-based. Denied requests, uploads and exports go into a hash-chained log. Change one row, and verification fails.
 >
-> **[7]** In a simulation with twenty-two drones uploading at once, tile-level locking cut the median capture-to-visible delay from seventy-nine seconds to four point four. For five-centimetre imagery, our capacity model estimates one frame every three to four seconds per drone. That is an estimate, not a measurement.
+> **[7]** In a simulation with 22 drones uploading at once, tile-level locking cut the median capture-to-visible delay from 79 seconds to 4.4. For five-centimetre imagery, our capacity model estimates one frame every three to four seconds per drone. That is an estimate, not a measurement.
 >
 > **[8]** Stage two measures what is still missing: detector quality on a labelled set, and latency and throughput on real hardware. EdgeOrtho.
 
-*≈ 240 words ≈ 95–100 s of speech at 150 words per minute; the remainder is picture and pauses. Do not exceed 3:00 in total.*
+*≈ 226 words; the draft video runs 2:28. Do not exceed 3:00 in total.*
 
 ## 4. On-screen captions (English, per scene)
 

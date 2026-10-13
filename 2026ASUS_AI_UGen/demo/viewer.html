@@ -64,8 +64,10 @@ const Mosaic = L.GridLayer.extend({
     return img;
   },
 });
-const mosaic = new Mosaic({ minZoom: 15, maxNativeZoom: 21, maxZoom: 22, opacity: 1,
-  attribution: 'Imagery: Water Resources Agency MOEA, Hsinchu City EPB, Taiwan Ecological Society, FeiMao (CC BY 4.0, via OpenAerialMap)' }).addTo(map);
+let mosaic = null;
+const mosaicOpts = { minZoom: 15, maxNativeZoom: 21, maxZoom: 22, opacity: 1,
+  attribution: 'Imagery: Water Resources Agency MOEA, Hsinchu City EPB, Taiwan Ecological Society, FeiMao (CC BY 4.0, via OpenAerialMap)' };
+mosaic = new Mosaic(mosaicOpts).addTo(map);
 
 const COLORS = { vehicle: "#ef4444", machinery: "#f97316", person: "#a855f7", boat: "#0ea5e9", structure: "#eab308", debris: "#22c55e" };
 const detLayer = L.layerGroup().addTo(map);
@@ -89,7 +91,15 @@ fetch(DET).then((r) => r.json()).then((gj) => {
 if (qs.get("lat")) map.setView([+qs.get("lat"), +qs.get("lng")], +(qs.get("z") || 20));
 
 // live=<seconds>: re-request the visible tiles periodically so the mosaic grows while frames are being ingested
-if (+qs.get("live") > 0) setInterval(() => { if (map.hasLayer(mosaic)) mosaic.redraw(); }, +qs.get("live") * 1000);
+// A fresh layer is loaded on top first and swapped in only when it has finished loading, so the picture never flashes empty.
+let refreshing = false;
+if (+qs.get("live") > 0) setInterval(() => {
+  if (refreshing || !map.hasLayer(mosaic)) return;
+  refreshing = true;
+  const next = new Mosaic(mosaicOpts).addTo(map);
+  next.setOpacity(mosaic.options.opacity);
+  next.once("load", () => { const old = mosaic; mosaic = next; map.removeLayer(old); refreshing = false; });
+}, +qs.get("live") * 1000);
 
 document.getElementById("t-mosaic").onchange = (e) => (e.target.checked ? map.addLayer(mosaic) : map.removeLayer(mosaic));
 document.getElementById("t-det").onchange = (e) => (e.target.checked ? map.addLayer(detLayer) : map.removeLayer(detLayer));
