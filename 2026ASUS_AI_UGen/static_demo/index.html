@@ -45,10 +45,7 @@
 <div class="panel" id="panel" hidden>
   <h2>EdgeOrtho · river-patrol demo</h2>
   <div class="sub">Touchian River, Hsinchu City · simulated flight on a real 3.6 cm orthophoto</div>
-  <div class="row">
-    <button class="jump" id="go-river">River channel</button>
-    <button class="jump" id="go-bridge">Bridge &amp; parking lot</button>
-  </div>
+  <div class="row" id="areas" style="flex-wrap:wrap"></div>
   <label><input type="checkbox" id="t-mosaic" checked> Mosaic (EPSG:3857, z17–z21 pyramid)</label>
   <div class="row"><span>Opacity</span><input id="op" type="range" min="0" max="100" value="100" style="flex:1"></div>
   <label><input type="checkbox" id="t-det" checked> Candidates (GeoJSON)</label>
@@ -93,6 +90,11 @@ function start() {
     attribution: 'Imagery: Water Resources Agency MOEA, Hsinchu City EPB, Taiwan Ecological Society, FeiMao (CC BY 4.0, via OpenAerialMap)' }).addTo(map);
   const det = L.layerGroup().addTo(map);
   const bounds = {};
+  const AREAS = [["river", "River channel"], ["bridge", "Bridge & parking lot"], ["farm", "Farmland & houses"], ["town", "Town edge"]];
+  AREAS.forEach(([id, label]) => {
+    const b = document.createElement("button"); b.className = "jump"; b.textContent = label; b.style.flex = "1 1 45%";
+    b.onclick = () => bounds[id] && map.fitBounds(bounds[id]); $("areas").appendChild(b);
+  });
   function load(name, url) {
     return fetch(url).then((r) => r.json()).then((gj) => {
       const pts = [];
@@ -108,9 +110,7 @@ function start() {
       bounds[name] = L.latLngBounds(pts).pad(0.5);
     });
   }
-  Promise.all([load("river", "detections_river.geojson"), load("bridge", "detections_bridge.geojson")]).then(() => map.fitBounds(bounds.river));
-  $("go-river").onclick = () => bounds.river && map.fitBounds(bounds.river);
-  $("go-bridge").onclick = () => bounds.bridge && map.fitBounds(bounds.bridge);
+  Promise.all(AREAS.map(([id]) => load(id, `detections_${id}.geojson`))).then(() => map.fitBounds(bounds.river));
   $("t-mosaic").onchange = (e) => (e.target.checked ? map.addLayer(mosaic) : map.removeLayer(mosaic));
   $("t-det").onchange = (e) => (e.target.checked ? map.addLayer(det) : map.removeLayer(det));
   $("op").oninput = (e) => mosaic.setOpacity(e.target.value / 100);

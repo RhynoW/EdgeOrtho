@@ -15,7 +15,7 @@ short_description: River-patrol map demo with review candidates
 
 A **static** demonstration: mosaic tiles and candidate detections were produced offline from synthetic frames; no server is running.
 
-- **What you see:** a simulated drone flight over the Touchian River (Hsinchu City), built from a real 3.64 cm orthophoto, published as a z17–z21 tile pyramid, with object *candidates* for human review.
+- **What you see:** four simulated drone flights (about 1,050 synthetic frames) over the Touchian River area, Hsinchu City — river channel, bridge and parking lot, farmland and houses, town edge — built from a real 3.64 cm orthophoto, published as a z17–z21 tile pyramid, with object *candidates* for human review.
 - **What it is not:** live inference, UGen300 measurements, verified detections, or an orthorectified survey product.
 - **Label on screen:** *Synthetic flight replay · Precomputed detections · Desktop GPU prototype · No UGen300 measurements yet.*
 - **Access code:** the entry code is a convenience gate for the review period. It is checked in the browser and is **not** a security control; the content is CC BY 4.0 data and prototype output.
