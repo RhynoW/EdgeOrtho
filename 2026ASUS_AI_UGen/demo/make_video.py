@@ -295,6 +295,40 @@ async def capture_live(a, tmp, durations):
     return live, cand, term
 
 
+def human_wavs(folder, outdir):
+    """Normalise the user's scene_1..scene_8 recordings to mono 44.1 kHz 16-bit WAV, trim leading/trailing silence."""
+    out = []
+    for i in range(1, len(SCENES) + 1):
+        src = None
+        for ext in ("wav", "m4a", "mp3", "aac", "flac", "ogg", "wma", "mp4"):
+            c = os.path.join(folder, f"scene_{i}.{ext}")
+            if os.path.exists(c): src = c; break
+        if not src: sys.exit(f"missing recording: scene_{i}.(wav|m4a|mp3|aac|flac) in {folder}")
+        dst = os.path.join(outdir, f"n{i - 1}.wav")
+        af = "silenceremove=start_periods=1:start_threshold=-50dB,areverse,silenceremove=start_periods=1:start_threshold=-50dB,areverse,loudnorm=I=-16:TP=-1.5:LRA=11"
+        r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", src, "-af", af, "-ac", "1", "-ar", "44100", "-sample_fmt", "s16", dst], capture_output=True, text=True)
+        if r.returncode: sys.exit(f"ffmpeg failed on {src}: {r.stderr[:300]}")
+        out.append(dst)
+    return out
+
+
+def save_capture(outdir, live, cand, term):
+    d = os.path.join(outdir, "_capture"); os.makedirs(d, exist_ok=True)
+    for name, frames in (("live", live), ("cand", cand)):
+        for i, im in enumerate(frames): im.save(os.path.join(d, f"{name}_{i:04d}.jpg"), "JPEG", quality=90)
+    json.dump(term, open(os.path.join(d, "term.json"), "w", encoding="utf8"), ensure_ascii=False)
+    return live, cand, term
+
+
+def load_capture(outdir):
+    d = os.path.join(outdir, "_capture")
+    if not os.path.isdir(d): sys.exit("no saved capture in " + d + " (run once without --reuse-capture)")
+    def frames(prefix):
+        fs = sorted(f for f in os.listdir(d) if f.startswith(prefix + "_") and f.endswith(".jpg"))
+        return [Image.open(os.path.join(d, f)).convert("RGB") for f in fs]
+    return frames("live"), frames("cand"), json.load(open(os.path.join(d, "term.json"), encoding="utf8"))
+
+
 def sample(frames, n):
     if not frames: return []
     return [frames[min(len(frames) - 1, int(i * len(frames) / max(1, n)))] for i in range(n)]
@@ -312,12 +346,15 @@ def main():
     ap.add_argument("--voice", default="Microsoft Zira Desktop"); ap.add_argument("--rate", type=int, default=0)
     ap.add_argument("--fps", type=int, default=15); ap.add_argument("--port", type=int, default=8098)
     ap.add_argument("--ingest-gap", type=float, default=0.11, help="seconds between frame submissions in the live scene")
+    ap.add_argument("--narration-dir", default=None,
+                    help="folder with your own recordings scene_1 ... scene_8 (wav, m4a, mp3, aac, flac); replaces the synthetic voice")
+    ap.add_argument("--reuse-capture", action="store_true", help="reuse the screen capture saved in <out>/_capture (skips the 5-minute capture)")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     tmp = tempfile.mkdtemp(prefix="edgeortho_video_")
     try:
         print("1/4 narration ...", flush=True)
-        wavs = tts([s[2] for s in SCENES], a.voice, a.out, a.rate)
+        wavs = human_wavs(a.narration_dir, a.out) if a.narration_dir else tts([s[2] for s in SCENES], a.voice, a.out, a.rate)
         infos = [wav_info(w) for w in wavs]
         rate, ch, sw = infos[0][0], infos[0][1], infos[0][2]
         gap = 0.6
@@ -325,7 +362,7 @@ def main():
         durs = [round(max(i[3] + gap + 0.4, MIN[k]), 2) for (k, _, _), i in zip(SCENES, infos)]
         print("   narration seconds:", [round(i[3], 1) for i in infos], "total scenes", round(sum(durs), 1), flush=True)
         print("2/4 screen capture (server + headless Edge) ...", flush=True)
-        live, cand, term = asyncio.run(capture_live(a, tmp, durs))
+        live, cand, term = load_capture(a.out) if a.reuse_capture else save_capture(a.out, *asyncio.run(capture_live(a, tmp, durs)))
         print(f"   captured live {len(live)}, candidates {len(cand)}, console lines {len(term)}", flush=True)
         # per-scene frame generators
         fps = a.fps
