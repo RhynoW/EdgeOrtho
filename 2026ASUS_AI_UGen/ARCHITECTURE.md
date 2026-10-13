@@ -130,7 +130,7 @@ Run detection at capture time so that (a) candidates can be known before the dro
 ### 4.3 Planned edge model **[Planned]**
 1. **Teacher-assisted annotation and supervised training.** Use the open-vocabulary model to pre-label river-corridor tiles; correct labels by hand, **including missed objects in regions the teacher did not box**; train a small detector on the corrected labels. This is not knowledge distillation (no teacher logits or feature loss are used). The architecture and weights must have a licence compatible with the contest terms; none has been selected or checked yet.
 2. **Compile.** Quantise to INT8 and compile with the Hailo Dataflow Compiler (x86 Linux) to a HEF; run with HailoRT on the UGen300.
-3. **Tiling.** 16 MP frames are cut into overlapping crops sized to the model input; boxes are merged, then georeferenced.
+3. **Tiling.** Full-resolution frames (e.g. 5472×3648 ≈ 20 MP on the Phantom 4 RTK that produced the source data) are cut into overlapping crops sized to the model input; boxes are merged, then georeferenced.
 4. **Output.** A compact detections record (event identity, source frame, session, capture time, geometry, model version, score, class, source box, review status) posted with the frame; retries are idempotent on (frame, model version); the server stores it and serves a candidates layer next to the mosaic.
 
 **Evaluation protocol (planned).** Split by river reach, date or independent flight — never by overlapping crops of the same image. Keep a fully hand-annotated evaluation set outside teacher selection and tuning. Start with two or three classes that can be labelled reliably. Report per-class precision, recall, missed-object rate and false alarms per reach.
@@ -273,7 +273,7 @@ Tests are staged: (A) synthetic offline, (B) real-camera replay with network, (C
 | 2 | Zero-shot class names unreliable (tarpaulins labelled "boat", buses labelled "truck") | Treat as "object of interest"; classes to be reduced in Stage II |
 | 3 | No UGen300 measurement | All edge numbers are plans |
 | 4 | Frames are synthetic, flat-ground, pinhole camera, simulated pose noise | Georeferencing accuracy of real cameras unknown |
-| 5 | 1536×1024 frames; real P4RTK frames are ~9× larger | Per-frame processing time on real frames is unmeasured |
+| 5 | Demo frames are 1536×1024 (1.6 MP); real P4RTK frames are 5472×3648 (≈ 20 MP), about 13× the pixels | Per-frame processing time on real frames is unmeasured |
 | 6 | Single machine, no network, one run per configuration | Throughput numbers are relative evidence only |
 | 7 | Availability is self-measured | 99.5 % is design support, not a demonstrated SLA |
 | 8 | Audit chain head needs external anchoring | Database-write attacker can rewrite a consistent chain without an anchor |
@@ -332,6 +332,6 @@ There is no hardware-in-the-loop test and no detection accuracy test.
 1. **Concurrency:** is a per-tile mutex registry with "read children inside the parent lock" a sound way to keep a read-modify-write pyramid consistent? Which interleavings would you test that a mutation test would not catch?
 2. **Audit chain:** with an external anchor, is the threat model (database-write attacker) correctly bounded? How would you automate anchoring without creating a new trust problem?
 3. **Availability:** is "missing minute = down, from first sample" defensible against a 99.5 % requirement given the self-measurement blind spot?
-4. **Edge placement:** for a Hailo-10H class device, is it better to detect before upload on the edge box (bandwidth, latency) or beside the server (simpler), given 16 MP frames over USB?
+4. **Edge placement:** for a Hailo-10H class device, is it better to detect before upload on the edge box (bandwidth, latency) or beside the server (simpler), given ~20 MP frames over USB?
 5. **Teacher-assisted annotation:** is using an open-vocabulary model to pre-label a river-corridor set, correcting by hand, then training a small INT8 detector a sound plan given label scarcity? What validation would convince you the detector is not just copying the pre-labeller's mistakes (e.g. "tarpaulin → boat") or its selection bias (objects it never boxed)?
 6. **Claims discipline:** are there statements here that read as stronger than the evidence, especially in sections 1 and 6?
